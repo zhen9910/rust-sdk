@@ -1,7 +1,10 @@
 [package]
 name = "mcp-client"
+license.workspace = true
 version.workspace = true
 edition.workspace = true
+repository.workspace = true
+description = "Client SDK for the Model Context Protocol"
 
 [dependencies]
 mcp-core = { workspace = true }

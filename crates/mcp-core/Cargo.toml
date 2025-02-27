@@ -1,7 +1,11 @@
 [package]
 name = "mcp-core"
+license.workspace = true
 version.workspace = true
 edition.workspace = true
+repository.workspace = true
+description = "Core types for Model Context Protocol"
+
 
 [dependencies]
 async-trait = "0.1"
