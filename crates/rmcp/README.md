@@ -1,41 +1,47 @@
-<div align = "right">
-<a href="docs/readme/README.zh-cn.md">简体中文</a>
-</div>
-
 # RMCP
 [![Crates.io Version](https://img.shields.io/crates/v/rmcp)](https://crates.io/crates/rmcp)
 ![Release status](https://github.commodelcontextprotocol/rust-sdk/actions/workflows/release.yml/badge.svg)
 [![docs.rs](https://img.shields.io/docsrs/rmcp)](https://docs.rs/rmcp/latest/rmcp)
 
-An official rust Model Context Protocol SDK implementation with tokio async runtime.
+A better and clean rust Model Context Protocol SDK implementation with tokio async runtime.
+
+## Comparing to official SDK
+
+The [Official SDK](https://github.com/modelcontextprotocol/rust-sdk/pulls) has too much limit and it was originally built for [goose](https://github.com/block/goose) rather than general using purpose.
+
+All the features listed on specification would be implemented in this crate. And the first and most important thing is, this crate has the correct and intact data [types](crate::model). See it yourself. 
 
 ## Usage
 
 ### Import
 ```toml
 rmcp = { version = "0.1", features = ["server"] }
-## or dev channel
-rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk", branch = "dev" }
 ```
 
 ### Quick start
 Start a client in one line:
-```rust
-use rmcp::{ServiceExt, transport::TokioChildProcess};
-use tokio::process::Command;
+```rust,ignore
+# use rmcp::{ServiceExt, transport::child_process::TokioChildProcess};
+# use tokio::process::Command;
 
 let client = ().serve(
     TokioChildProcess::new(Command::new("npx").arg("-y").arg("@modelcontextprotocol/server-everything"))?
 ).await?;
 ```
 
-#### 1. Build a transport
 
-```rust, ignore
-use tokio::io::{stdin, stdout};
-let transport = (stdin(), stdout());
+Start a client in one line:
+```rust,ignore
+# use rmcp::{ServiceExt, transport::TokioChildProcess};
+# use tokio::process::Command;
+
+let client = ().serve(
+    TokioChildProcess::new(Command::new("npx").arg("-y").arg("@modelcontextprotocol/server-everything"))?
+).await?;
 ```
 
+
+#### 1. Build a transport
 The transport type must implemented [`IntoTransport`](crate::transport::IntoTransport) trait, which allow split into a sink and a stream.
 
 For client, the sink item is [`ClientJsonRpcMessage`](crate::model::ClientJsonRpcMessage) and stream item is [`ServerJsonRpcMessage`](crate::model::ServerJsonRpcMessage)
@@ -43,19 +49,27 @@ For client, the sink item is [`ClientJsonRpcMessage`](crate::model::ClientJsonRp
 For server, the sink item is [`ServerJsonRpcMessage`](crate::model::ServerJsonRpcMessage) and stream item is [`ClientJsonRpcMessage`](crate::model::ClientJsonRpcMessage)
 
 ##### These types is automatically implemented [`IntoTransport`](crate::transport::IntoTransport) trait
-1. The types that already implement both [`Sink`](futures::Sink) and [`Stream`](futures::Stream) trait.
-2. A tuple of sink `Tx` and stream `Rx`: `(Tx, Rx)`.
-3. The type that implement both [`tokio::io::AsyncRead`] and [`tokio::io::AsyncWrite`] trait.
-4. A tuple of [`tokio::io::AsyncRead`] `R `and [`tokio::io::AsyncWrite`] `W`:  `(R, W)`.
+1. For type that already implement both [`Sink`](futures::Sink) and [`Stream`](futures::Stream) trait, they are automatically implemented [`IntoTransport`](crate::transport::IntoTransport) trait
+2. For tuple of sink `Tx` and stream `Rx`, type `(Tx, Rx)` are automatically implemented [`IntoTransport`](crate::transport::IntoTransport) trait
+3. For type that implement both [`tokio::io::AsyncRead`] and [`tokio::io::AsyncWrite`] trait, they are automatically implemented [`IntoTransport`](crate::transport::IntoTransport) trait
+4. For tuple of [`tokio::io::AsyncRead`] `R `and [`tokio::io::AsyncWrite`] `W`, type `(R, W)` are automatically implemented [`IntoTransport`](crate::transport::IntoTransport) trait
 
-For example, you can see how we build a transport through TCP stream or http upgrade so easily. [examples](examples/README.md)
+
+```rust, ignore
+use tokio::io::{stdin, stdout};
+let transport = (stdin(), stdout());
+```
 
 #### 2. Build a service
-You can easily build a service by using [`ServerHandler`](crates/rmcp/src/handler/server.rs) or [`ClientHandler`](crates/rmcp/src/handler/client.rs).
+You can easily build a service by using [`ServerHandler`](crate::handler::server) or [`ClientHandler`](crate::handler::client).
 
 ```rust, ignore
 let service = common::counter::Counter::new();
 ```
+
+Or if you want to use `tower`, you can [`TowerHandler`] as a adapter.
+
+You can reference the [server examples](https://github.commodelcontextprotocol/rust-sdk/tree/release/examples/servers).
 
 #### 3. Serve them together
 ```rust, ignore
@@ -84,7 +98,7 @@ let quit_reason = server.cancel().await?;
 ### Use marcos to declaring tool
 Use `toolbox` and `tool` macros to create tool quickly.
 
-Check this [file](examples/servers/src/common/calculator.rs).
+Check this [file](https://github.commodelcontextprotocol/rust-sdk/tree/release/examples/servers/src/common/calculator.rs).
 ```rust, ignore
 use rmcp::{ServerHandler, model::ServerInfo, schemars, tool};
 
@@ -151,7 +165,7 @@ let service = service.into_dyn();
 
 
 ### Examples
-See [examples](examples/README.md)
+See [examples](https://github.commodelcontextprotocol/rust-sdk/tree/release/examples/README.md)
 
 ### Features
 - `client`: use client side sdk

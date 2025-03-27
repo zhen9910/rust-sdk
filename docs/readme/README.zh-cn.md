@@ -1,25 +1,21 @@
-<div align = "right">
-<a href="docs/readme/README.zh-cn.md">简体中文</a>
-</div>
-
 # RMCP
 [![Crates.io Version](https://img.shields.io/crates/v/rmcp)](https://crates.io/crates/rmcp)
 ![Release status](https://github.commodelcontextprotocol/rust-sdk/actions/workflows/release.yml/badge.svg)
 [![docs.rs](https://img.shields.io/docsrs/rmcp)](https://docs.rs/rmcp/latest/rmcp)
 
-An official rust Model Context Protocol SDK implementation with tokio async runtime.
+一个干净且完整的 MCP SDK
 
-## Usage
+## 使用
 
-### Import
+### 导入
 ```toml
 rmcp = { version = "0.1", features = ["server"] }
-## or dev channel
+## 或者开发者频道
 rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk", branch = "dev" }
 ```
 
-### Quick start
-Start a client in one line:
+### 快速上手
+你可以用一行代码，启动一个SSE客户端
 ```rust
 use rmcp::{ServiceExt, transport::TokioChildProcess};
 use tokio::process::Command;
@@ -29,42 +25,46 @@ let client = ().serve(
 ).await?;
 ```
 
-#### 1. Build a transport
+#### 1. 构建传输层
 
 ```rust, ignore
 use tokio::io::{stdin, stdout};
 let transport = (stdin(), stdout());
 ```
 
-The transport type must implemented [`IntoTransport`](crate::transport::IntoTransport) trait, which allow split into a sink and a stream.
+传输层类型只需要实现 [`IntoTransport`](crate::transport::IntoTransport) trait, 这个特性允许你创建一个Sink和一个Stream
 
-For client, the sink item is [`ClientJsonRpcMessage`](crate::model::ClientJsonRpcMessage) and stream item is [`ServerJsonRpcMessage`](crate::model::ServerJsonRpcMessage)
+对于客户端, Sink 的 Item 是 [`ClientJsonRpcMessage`](crate::model::ClientJsonRpcMessage)， Stream 的 Item 是 [`ServerJsonRpcMessage`](crate::model::ServerJsonRpcMessage)
 
-For server, the sink item is [`ServerJsonRpcMessage`](crate::model::ServerJsonRpcMessage) and stream item is [`ClientJsonRpcMessage`](crate::model::ClientJsonRpcMessage)
+对于服务端, Sink 的 Item 是 [`ServerJsonRpcMessage`](crate::model::ServerJsonRpcMessage)， Stream 的 Item 是 [`ClientJsonRpcMessage`](crate::model::ClientJsonRpcMessage)
 
-##### These types is automatically implemented [`IntoTransport`](crate::transport::IntoTransport) trait
-1. The types that already implement both [`Sink`](futures::Sink) and [`Stream`](futures::Stream) trait.
-2. A tuple of sink `Tx` and stream `Rx`: `(Tx, Rx)`.
-3. The type that implement both [`tokio::io::AsyncRead`] and [`tokio::io::AsyncWrite`] trait.
-4. A tuple of [`tokio::io::AsyncRead`] `R `and [`tokio::io::AsyncWrite`] `W`:  `(R, W)`.
+##### 这些类型自动实现了 [`IntoTransport`](crate::transport::IntoTransport) trait
+1. 兼具 [`Sink`](futures::Sink) 与 [`Stream`](futures::Stream) 的
+2. 一对 Sink `Tx` Stream `Rx`, 类型 `(Tx, Rx)` 自动实现 [`IntoTransport`](crate::transport::IntoTransport)
+3. 兼具 [`tokio::io::AsyncRead`] 与 [`tokio::io::AsyncWrite`] 的
+4. 一对 Sink [`tokio::io::AsyncRead`] `R ` [`tokio::io::AsyncWrite`] `W`, 类型 `(R, W)`自动实现 [`IntoTransport`](crate::transport::IntoTransport)
 
-For example, you can see how we build a transport through TCP stream or http upgrade so easily. [examples](examples/README.md)
+示例，你可以轻松创建一个TCP流来作为传输层. [examples](examples/README.md)
 
-#### 2. Build a service
-You can easily build a service by using [`ServerHandler`](crates/rmcp/src/handler/server.rs) or [`ClientHandler`](crates/rmcp/src/handler/client.rs).
+#### 2. 构建服务
+你可以通过 [`ServerHandler`](crates/rmcp/src/handler/server.rs) 或 [`ClientHandler`](crates/rmcp/src/handler/client.rs) 轻松构建服务
 
 ```rust, ignore
 let service = common::counter::Counter::new();
 ```
 
-#### 3. Serve them together
+如果你想用 `tower`, 你也可以使用 [`TowerHandler`] 来作为tower服务的适配器.
+
+请参考 [服务用例](examples/servers/src/common/counter.rs).
+
+#### 3. 把他们组装到一起
 ```rust, ignore
-// this call will finish the initialization process
+// 这里会自动完成初始化流程
 let server = service.serve(transport).await?;
 ```
 
-#### 4. Interact with the server
-Once the server is initialized, you can send requests or notifications:
+#### 4. 与服务端/客户端交互
+一旦你完成初始化，你可以发送请求或者发送通知
 
 ```rust, ignore
 // request 
@@ -74,17 +74,17 @@ let roots = server.list_roots().await?;
 server.notify_cancelled(...).await?;
 ```
 
-#### 5. Waiting for service shutdown
+#### 5. 等待服务结束
 ```rust, ignore
 let quit_reason = server.waiting().await?;
 // or cancel it
 let quit_reason = server.cancel().await?;
 ```
 
-### Use marcos to declaring tool
-Use `toolbox` and `tool` macros to create tool quickly.
+### 使用宏来定义工具
+使用 `tool` 宏来快速创建工具
 
-Check this [file](examples/servers/src/common/calculator.rs).
+请看这个[文件](examples/servers/src/common/calculator.rs).
 ```rust, ignore
 use rmcp::{ServerHandler, model::ServerInfo, schemars, tool};
 
@@ -137,33 +137,28 @@ impl ServerHandler for Calculator {
 }
 
 ```
-The only thing you should do is to make the function's return type implement `IntoCallToolResult`.
+你要做的唯一事情就是保证函数的返回类型实现了 `IntoCallToolResult`.
 
-And you can just implement `IntoContents`, and the return value will be marked as success automatically. 
+你可以为返回类型实现 `IntoContents`, 那么返回内容会被自动标记为成功。
 
-If you return a type of `Result<T, E>` where `T` and `E` both implemented `IntoContents`, it's also OK.
+如果返回类型是  `Result<T, E>` ，其中 `T` 与 `E` 都实现了 `IntoContents`, 那就会自动标记成功或者失败。
 
-### Manage Multi Services
-For many cases you need to manage several service in a collection, you can call `into_dyn` to convert services into the same type.
+### 管理多个服务
+在很多情况下你需要把不同类型的服务管理在一个集合当中，你可以调用 `into_dyn` 来把他们都转化成动态类型。
 ```rust, ignore
 let service = service.into_dyn();
 ```
 
 
-### Examples
-See [examples](examples/README.md)
+### 用例
+查看 [用例文件夹](examples/README.md)
 
 ### Features
-- `client`: use client side sdk
-- `server`: use server side sdk
-- `macros`: macros default
-#### Transports
-- `transport-io`: Server stdio transport
-- `transport-sse-server`: Server SSE transport
-- `transport-child-process`: Client stdio transport
-- `transport-sse`: Client sse transport
+- `client`: 使用客户端sdk
+- `server`: 使用服务端sdk
 
-## Related Resources
+
+## 相关资源
 - [MCP Specification](https://spec.modelcontextprotocol.io/specification/2024-11-05/)
 
 - [Schema](https://github.com/modelcontextprotocol/specification/blob/main/schema/2024-11-05/schema.ts)
