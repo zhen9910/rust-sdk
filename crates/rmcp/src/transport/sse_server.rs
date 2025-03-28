@@ -219,13 +219,9 @@ impl SseServer {
         .await
     }
     pub async fn serve_with_config(config: SseServerConfig) -> io::Result<Self> {
-        let (app, transport_rx) = App::new(config.post_path.clone());
-        let listener = tokio::net::TcpListener::bind(config.bind).await?;
-        let service = Router::new()
-            .route(&config.sse_path, get(sse_handler))
-            .route(&config.post_path, post(post_event_handler))
-            .with_state(app);
-        let ct = config.ct.child_token();
+        let (sse_server, service) = Self::new(config);
+        let listener = tokio::net::TcpListener::bind(sse_server.config.bind).await?;
+        let ct = sse_server.config.ct.child_token();
         let server = axum::serve(listener, service).with_graceful_shutdown(async move {
             ct.cancelled().await;
             tracing::info!("sse server cancelled");
@@ -236,13 +232,28 @@ impl SseServer {
                     tracing::error!(error = %e, "sse server shutdown with error");
                 }
             }
-            .instrument(tracing::info_span!("sse-server", bind_address = %config.bind)),
+            .instrument(tracing::info_span!("sse-server", bind_address = %sse_server.config.bind)),
         );
-        Ok(Self {
+        Ok(sse_server)
+    }
+
+    /// Warning: This function creates a new SseServer instance with the provided configuration.
+    /// `App.post_path` may be incorrect if using `Router` as an embedded router.
+    pub fn new(config: SseServerConfig) -> (SseServer, Router) {
+        let (app, transport_rx) = App::new(config.post_path.clone());
+        let router = Router::new()
+            .route(&config.sse_path, get(sse_handler))
+            .route(&config.post_path, post(post_event_handler))
+            .with_state(app);
+
+        let server = SseServer {
             transport_rx,
             config,
-        })
+        };
+
+        (server, router)
     }
+
     pub fn with_service<S, F>(mut self, service_provider: F) -> CancellationToken
     where
         S: Service<RoleServer>,
