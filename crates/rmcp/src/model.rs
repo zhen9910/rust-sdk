@@ -610,8 +610,8 @@ pub type PromptListChangedNotification = NotificationNoParam<PromptListChangedNo
 const_string!(ToolListChangedNotificationMethod = "notifications/tools/list_changed");
 pub type ToolListChangedNotification = NotificationNoParam<ToolListChangedNotificationMethod>;
 // 日志相关
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Copy)]
+#[serde(rename_all = "lowercase")] //match spec
 pub enum LoggingLevel {
     Debug,
     Info,
