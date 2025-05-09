@@ -3,7 +3,7 @@ use std::{collections::HashMap, io, net::SocketAddr, sync::Arc, time::Duration};
 use axum::{
     Json, Router,
     extract::State,
-    http::{HeaderMap, HeaderValue, StatusCode},
+    http::{HeaderMap, HeaderValue, StatusCode, request::Parts},
     response::{
         IntoResponse, Response,
         sse::{Event, KeepAlive, Sse},
@@ -68,11 +68,11 @@ fn receiver_as_stream(
 
 async fn post_handler(
     State(app): State<App>,
-    header_map: HeaderMap,
-    Json(message): Json<ClientJsonRpcMessage>,
+    parts: Parts,
+    Json(mut message): Json<ClientJsonRpcMessage>,
 ) -> Result<Response, Response> {
     use futures::StreamExt;
-    if let Some(session_id) = header_map.get(HEADER_SESSION_ID) {
+    if let Some(session_id) = parts.headers.get(HEADER_SESSION_ID).cloned() {
         let session_id = session_id
             .to_str()
             .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()).into_response())?;
@@ -84,6 +84,8 @@ async fn post_handler(
                 .ok_or((StatusCode::NOT_FOUND, "session not found").into_response())?;
             session.handle().clone()
         };
+        // inject request part
+        message.insert_extension(parts);
         match &message {
             ClientJsonRpcMessage::Request(_) | ClientJsonRpcMessage::BatchRequest(_) => {
                 let receiver = handle.establish_request_wise_channel().await.map_err(|e| {
@@ -128,6 +130,8 @@ async fn post_handler(
     } else {
         // expect initialize message
         let session_id = session_id();
+        // inject request part
+        message.insert_extension(parts);
         let (session, transport) =
             super::session::create_session(session_id.clone(), Default::default());
         let Ok(_) = app.transport_tx.send(transport) else {
