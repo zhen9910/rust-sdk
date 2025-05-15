@@ -192,6 +192,7 @@ See [examples](examples/README.md)
 - `client`: use client side sdk
 - `server`: use server side sdk
 - `macros`: macros default
+- `schemars`: implement `JsonSchema` for all model structs
 
 ### Transports
 

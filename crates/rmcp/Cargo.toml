@@ -28,7 +28,7 @@ paste = { version = "1", optional = true }
 oauth2 = { version = "5.0", optional = true }
 
 # for auto generate schema
-schemars = { version = "0.8", optional = true }
+schemars = { version = "0.8", optional = true, features = ["chrono"] }
 
 # for image encoding
 base64 = { version = "0.21", optional = true }
@@ -89,6 +89,7 @@ tower = ["dep:tower-service"]
 __auth = ["dep:oauth2", "dep:reqwest", "dep:url"]
 auth = ["__auth", "reqwest?/rustls-tls"]
 auth-tls-no-provider = ["auth", "reqwest?/rustls-tls-no-provider"]
+schemars = ["dep:schemars"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
@@ -130,4 +131,9 @@ path = "tests/test_logging.rs"
 name = "test_message_protocol"
 required-features = ["client"]
 path = "tests/test_message_protocol.rs"
+
+[[test]]
+name = "test_message_schema"
+required-features = ["server", "client", "schemars"]
+path = "tests/test_message_schema.rs"
 
