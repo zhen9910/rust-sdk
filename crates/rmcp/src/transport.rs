@@ -84,7 +84,7 @@ pub use worker::WorkerTransport;
 pub mod child_process;
 #[cfg(feature = "transport-child-process")]
 #[cfg_attr(docsrs, doc(cfg(feature = "transport-child-process")))]
-pub use child_process::TokioChildProcess;
+pub use child_process::{ConfigureCommandExt, TokioChildProcess};
 
 #[cfg(feature = "transport-io")]
 #[cfg_attr(docsrs, doc(cfg(feature = "transport-io")))]

@@ -58,15 +58,13 @@
 //!
 //! ```rust
 //! use anyhow::Result;
-//! use rmcp::{model::CallToolRequestParam, service::ServiceExt, transport::TokioChildProcess};
+//! use rmcp::{model::CallToolRequestParam, service::ServiceExt, transport::{TokioChildProcess, ConfigureCommandExt}};
 //! use tokio::process::Command;
 //!
 //! async fn client() -> Result<()> {
-//!     let service = ()
-//!       .serve(TokioChildProcess::new(
-//!             Command::new("uvx").arg("mcp-server-git"),
-//!         )?)
-//!         .await?;
+//!     let service = ().serve(TokioChildProcess::new(Command::new("uvx").configure(|cmd| {
+//!         cmd.arg("mcp-server-git");
+//!     }))?).await?;
 //!
 //!     // Initialize
 //!     let server_info = service.peer_info();
