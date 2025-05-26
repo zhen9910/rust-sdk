@@ -424,14 +424,14 @@ pub struct RunningService<R: ServiceRole, S: Service<R>> {
     service: Arc<S>,
     peer: Peer<R>,
     handle: tokio::task::JoinHandle<QuitReason>,
-    /// cancellation token with drop guard
+    cancellation_token: CancellationToken,
     dg: DropGuard,
 }
 impl<R: ServiceRole, S: Service<R>> Deref for RunningService<R, S> {
     type Target = Peer<R>;
 
     fn deref(&self) -> &Self::Target {
-        self.peer()
+        &self.peer
     }
 }
 
@@ -444,6 +444,11 @@ impl<R: ServiceRole, S: Service<R>> RunningService<R, S> {
     pub fn service(&self) -> &S {
         self.service.as_ref()
     }
+    #[inline]
+    pub fn cancellation_token(&self) -> RunningServiceCancellationToken {
+        RunningServiceCancellationToken(self.cancellation_token.clone())
+    }
+    #[inline]
     pub async fn waiting(self) -> Result<QuitReason, tokio::task::JoinError> {
         self.handle.await
     }
@@ -451,6 +456,15 @@ impl<R: ServiceRole, S: Service<R>> RunningService<R, S> {
         let RunningService { dg, handle, .. } = self;
         dg.disarm().cancel();
         handle.await
+    }
+}
+
+// use a wrapper type so we can tweak the implementation if needed
+pub struct RunningServiceCancellationToken(CancellationToken);
+
+impl RunningServiceCancellationToken {
+    pub fn cancel(self) {
+        self.0.cancel();
     }
 }
 
@@ -801,6 +815,7 @@ where
         service,
         peer: peer_return,
         handle,
+        cancellation_token: ct.clone(),
         dg: ct.drop_guard(),
     }
 }
