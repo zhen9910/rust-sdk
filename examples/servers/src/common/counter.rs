@@ -1,8 +1,13 @@
+#![allow(dead_code)]
 use std::sync::Arc;
 
 use rmcp::{
-    Error as McpError, RoleServer, ServerHandler, const_string, model::*, schemars,
-    service::RequestContext, tool,
+    Error as McpError, RoleServer, ServerHandler,
+    handler::server::{router::tool::ToolRouter, tool::Parameters},
+    model::*,
+    schemars,
+    service::RequestContext,
+    tool, tool_handler, tool_router,
 };
 use serde_json::json;
 use tokio::sync::Mutex;
@@ -16,14 +21,16 @@ pub struct StructRequest {
 #[derive(Clone)]
 pub struct Counter {
     counter: Arc<Mutex<i32>>,
+    tool_router: ToolRouter<Counter>,
 }
 
-#[tool(tool_box)]
+#[tool_router]
 impl Counter {
     #[allow(dead_code)]
     pub fn new() -> Self {
         Self {
             counter: Arc::new(Mutex::new(0)),
+            tool_router: Self::tool_router(),
         }
     }
 
@@ -63,27 +70,23 @@ impl Counter {
     }
 
     #[tool(description = "Repeat what you say")]
-    fn echo(
-        &self,
-        #[tool(param)]
-        #[schemars(description = "Repeat what you say")]
-        saying: String,
-    ) -> Result<CallToolResult, McpError> {
-        Ok(CallToolResult::success(vec![Content::text(saying)]))
+    fn echo(&self, Parameters(object): Parameters<JsonObject>) -> Result<CallToolResult, McpError> {
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::Value::Object(object).to_string(),
+        )]))
     }
 
     #[tool(description = "Calculate the sum of two numbers")]
     fn sum(
         &self,
-        #[tool(aggr)] StructRequest { a, b }: StructRequest,
+        Parameters(StructRequest { a, b }): Parameters<StructRequest>,
     ) -> Result<CallToolResult, McpError> {
         Ok(CallToolResult::success(vec![Content::text(
             (a + b).to_string(),
         )]))
     }
 }
-const_string!(Echo = "echo");
-#[tool(tool_box)]
+#[tool_handler]
 impl ServerHandler for Counter {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {

@@ -1,12 +1,12 @@
 //cargo test --test test_tool_macros --features "client server"
-
+#![allow(dead_code)]
 use std::sync::Arc;
 
 use rmcp::{
     ClientHandler, ServerHandler, ServiceExt,
-    handler::server::tool::ToolCallContext,
+    handler::server::{router::tool::ToolRouter, tool::Parameters},
     model::{CallToolRequestParam, ClientInfo},
-    tool,
+    tool, tool_handler, tool_router,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -17,37 +17,38 @@ pub struct GetWeatherRequest {
     pub date: String,
 }
 
-impl ServerHandler for Server {
-    async fn call_tool(
-        &self,
-        request: rmcp::model::CallToolRequestParam,
-        context: rmcp::service::RequestContext<rmcp::RoleServer>,
-    ) -> Result<rmcp::model::CallToolResult, rmcp::Error> {
-        let tcc = ToolCallContext::new(self, request, context);
-        match tcc.name() {
-            "get-weather" => Self::get_weather_tool_call(tcc).await,
-            _ => Err(rmcp::Error::invalid_params("method not found", None)),
-        }
+#[tool_handler(router = self.tool_router)]
+impl ServerHandler for Server {}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct Server {
+    tool_router: ToolRouter<Self>,
+}
+
+impl Default for Server {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct Server {}
-
+#[tool_router(router = tool_router)]
 impl Server {
+    pub fn new() -> Self {
+        Self {
+            tool_router: Self::tool_router(),
+        }
+    }
+
     /// This tool is used to get the weather of a city.
-    #[tool(name = "get-weather", description = "Get the weather of a city.", vis = )]
-    pub async fn get_weather(&self, #[tool(param)] city: String) -> String {
+    #[tool(name = "get-weather", description = "Get the weather of a city.")]
+    pub async fn get_weather(&self, city: Parameters<GetWeatherRequest>) -> String {
         drop(city);
         "rain".to_string()
     }
-    #[tool(description = "Empty Parameter")]
-    async fn empty_param(&self) {}
 
-    #[tool(description = "Optional Parameter")]
-    async fn optional_param(&self, #[tool(param)] city: Option<String>) -> String {
-        city.unwrap_or_default()
-    }
+    #[tool]
+    async fn empty_param(&self) {}
 }
 
 // define generic service trait
@@ -68,13 +69,15 @@ impl DataService for MockDataService {
 #[derive(Debug, Clone)]
 pub struct GenericServer<DS: DataService> {
     data_service: Arc<DS>,
+    tool_router: ToolRouter<Self>,
 }
 
-#[tool(tool_box)]
+#[tool_router]
 impl<DS: DataService> GenericServer<DS> {
     pub fn new(data_service: DS) -> Self {
         Self {
             data_service: Arc::new(data_service),
+            tool_router: Self::tool_router(),
         }
     }
 
@@ -83,16 +86,22 @@ impl<DS: DataService> GenericServer<DS> {
         self.data_service.get_data()
     }
 }
-#[tool(tool_box)]
+
+#[tool_handler]
 impl<DS: DataService> ServerHandler for GenericServer<DS> {}
 
 #[tokio::test]
 async fn test_tool_macros() {
-    let server = Server::default();
+    let server = Server::new();
     let _attr = Server::get_weather_tool_attr();
-    let _get_weather_call_fn = Server::get_weather_tool_call;
+    let _get_weather_tool_attr_fn = Server::get_weather_tool_attr;
     let _get_weather_fn = Server::get_weather;
-    server.get_weather("harbin".into()).await;
+    server
+        .get_weather(Parameters(GetWeatherRequest {
+            city: "Harbin".into(),
+            date: "Yesterday".into(),
+        }))
+        .await;
 }
 
 #[tokio::test]
@@ -108,14 +117,14 @@ async fn test_tool_macros_with_generics() {
     let mock_service = MockDataService;
     let server = GenericServer::new(mock_service);
     let _attr = GenericServer::<MockDataService>::get_data_tool_attr();
-    let _get_data_call_fn = GenericServer::<MockDataService>::get_data_tool_call;
+    let _get_data_call_fn = GenericServer::<MockDataService>::get_data;
     let _get_data_fn = GenericServer::<MockDataService>::get_data;
     assert_eq!(server.get_data().await, "mock data");
 }
 
 #[tokio::test]
 async fn test_tool_macros_with_optional_param() {
-    let _attr = Server::optional_param_tool_attr();
+    let _attr = Server::get_weather_tool_attr();
     // println!("{_attr:?}");
     let attr_type = _attr
         .input_schema
@@ -147,49 +156,56 @@ pub struct OptionalI64TestSchema {
 }
 
 // Dummy struct to host the test tool method
-#[derive(Debug, Clone, Default)]
-pub struct OptionalSchemaTester {}
+#[derive(Debug, Clone)]
+pub struct OptionalSchemaTester {
+    tool_router: ToolRouter<Self>,
+}
 
+impl Default for OptionalSchemaTester {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl OptionalSchemaTester {
+    pub fn new() -> Self {
+        Self {
+            tool_router: Self::tool_router(),
+        }
+    }
+}
+
+#[tool_router]
 impl OptionalSchemaTester {
     // Dummy tool function using the test schema as an aggregated parameter
     #[tool(description = "A tool to test optional schema generation")]
-    async fn test_optional_aggr(&self, #[tool(aggr)] _req: OptionalFieldTestSchema) {
+    async fn test_optional(&self, _req: Parameters<OptionalFieldTestSchema>) {
         // Implementation doesn't matter for schema testing
         // Return type changed to () to satisfy IntoCallToolResult
     }
 
     // Tool function to test optional i64 handling
     #[tool(description = "A tool to test optional i64 schema generation")]
-    async fn test_optional_i64_aggr(&self, #[tool(aggr)] req: OptionalI64TestSchema) -> String {
+    async fn test_optional_i64(
+        &self,
+        Parameters(req): Parameters<OptionalI64TestSchema>,
+    ) -> String {
         match req.count {
             Some(c) => format!("Received count: {}", c),
             None => "Received null count".to_string(),
         }
     }
 }
-
+#[tool_handler]
 // Implement ServerHandler to route tool calls for OptionalSchemaTester
-impl ServerHandler for OptionalSchemaTester {
-    async fn call_tool(
-        &self,
-        request: rmcp::model::CallToolRequestParam,
-        context: rmcp::service::RequestContext<rmcp::RoleServer>,
-    ) -> Result<rmcp::model::CallToolResult, rmcp::Error> {
-        let tcc = ToolCallContext::new(self, request, context);
-        match tcc.name() {
-            "test_optional_aggr" => Self::test_optional_aggr_tool_call(tcc).await,
-            "test_optional_i64_aggr" => Self::test_optional_i64_aggr_tool_call(tcc).await,
-            _ => Err(rmcp::Error::invalid_params("method not found", None)),
-        }
-    }
-}
+impl ServerHandler for OptionalSchemaTester {}
 
 #[test]
 fn test_optional_field_schema_generation_via_macro() {
     // tests https://github.com/modelcontextprotocol/rust-sdk/issues/135
 
     // Get the attributes generated by the #[tool] macro helper
-    let tool_attr = OptionalSchemaTester::test_optional_aggr_tool_attr();
+    let tool_attr = OptionalSchemaTester::test_optional_tool_attr();
 
     // Print the actual generated schema for debugging
     println!(
@@ -257,7 +273,7 @@ async fn test_optional_i64_field_with_null_input() -> anyhow::Result<()> {
     let (server_transport, client_transport) = tokio::io::duplex(4096);
 
     // Server setup
-    let server = OptionalSchemaTester::default();
+    let server = OptionalSchemaTester::new();
     let server_handle = tokio::spawn(async move {
         server.serve(server_transport).await?.waiting().await?;
         anyhow::Ok(())
@@ -270,7 +286,7 @@ async fn test_optional_i64_field_with_null_input() -> anyhow::Result<()> {
     // Test null case
     let result = client
         .call_tool(CallToolRequestParam {
-            name: "test_optional_i64_aggr".into(),
+            name: "test_optional_i64".into(),
             arguments: Some(
                 serde_json::json!({
                     "count": null,
@@ -298,7 +314,7 @@ async fn test_optional_i64_field_with_null_input() -> anyhow::Result<()> {
     // Test Some case
     let some_result = client
         .call_tool(CallToolRequestParam {
-            name: "test_optional_i64_aggr".into(),
+            name: "test_optional_i64".into(),
             arguments: Some(
                 serde_json::json!({
                     "count": 42,
