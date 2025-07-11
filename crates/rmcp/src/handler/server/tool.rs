@@ -3,7 +3,7 @@ use std::{
 };
 
 use futures::future::{BoxFuture, FutureExt};
-use schemars::JsonSchema;
+use schemars::{JsonSchema, transform::AddNullable};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use tokio_util::sync::CancellationToken;
 
@@ -11,17 +11,16 @@ pub use super::router::tool::{ToolRoute, ToolRouter};
 use crate::{
     RoleServer,
     model::{CallToolRequestParam, CallToolResult, IntoContents, JsonObject},
+    schemars::generate::SchemaSettings,
     service::RequestContext,
 };
-
 /// A shortcut for generating a JSON schema for a type.
 pub fn schema_for_type<T: JsonSchema>() -> JsonObject {
     // explicitly to align json schema version to official specifications.
     // https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-03-26/schema.json
-    let mut settings = schemars::r#gen::SchemaSettings::draft07();
-    settings.option_nullable = true;
-    settings.option_add_null_type = false;
-    settings.visitors = Vec::default();
+    // TODO: update to 2020-12 waiting for the mcp spec update
+    let mut settings = SchemaSettings::draft07();
+    settings.transforms = vec![Box::new(AddNullable::default())];
     let generator = settings.into_generator();
     let schema = generator.into_root_schema_for::<T>();
     let object = serde_json::to_value(schema).expect("failed to serialize schema");
@@ -185,11 +184,11 @@ pub type DynCallToolHandler<S> = dyn for<'s> Fn(ToolCallContext<'s, S>) -> BoxFu
 pub struct Parameters<P>(pub P);
 
 impl<P: JsonSchema> JsonSchema for Parameters<P> {
-    fn schema_name() -> String {
+    fn schema_name() -> Cow<'static, str> {
         P::schema_name()
     }
 
-    fn json_schema(generator: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
         P::json_schema(generator)
     }
 }
