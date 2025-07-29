@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1](https://github.com/modelcontextprotocol/rust-sdk/compare/rmcp-v0.3.0...rmcp-v0.3.1) - 2025-07-29
+
+### Fixed
+
+- use mimeType instead of mime_type for MCP specification compliance ([#339](https://github.com/modelcontextprotocol/rust-sdk/pull/339))
+- return a 405 for GET and DELETE if stateful_mode=false ([#331](https://github.com/modelcontextprotocol/rust-sdk/pull/331))
+- propagate tracing spans when spawning new tokio tasks ([#334](https://github.com/modelcontextprotocol/rust-sdk/pull/334))
+- Explicitly added client_id as an extra parameter causes bad token requests ([#322](https://github.com/modelcontextprotocol/rust-sdk/pull/322))
+
+### Other
+
+- Fix formatting in crate descriptions in README.md ([#333](https://github.com/modelcontextprotocol/rust-sdk/pull/333))
+
 ## [0.3.0](https://github.com/modelcontextprotocol/rust-sdk/compare/rmcp-v0.2.1...rmcp-v0.3.0) - 2025-07-15
 
 ### Added
