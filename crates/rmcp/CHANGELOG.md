@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2](https://github.com/modelcontextprotocol/rust-sdk/compare/rmcp-v0.3.1...rmcp-v0.3.2) - 2025-07-30
+
+### Fixed
+
+- *(capabilities)* do not serialize None as null for `list_changed` ([#341](https://github.com/modelcontextprotocol/rust-sdk/pull/341))
+- *(Transport)* close oneshot transport on error ([#340](https://github.com/modelcontextprotocol/rust-sdk/pull/340))
+- *(oauth)* expose OAuthTokenResponse publicly ([#335](https://github.com/modelcontextprotocol/rust-sdk/pull/335))
+
 ## [0.3.1](https://github.com/modelcontextprotocol/rust-sdk/compare/rmcp-v0.3.0...rmcp-v0.3.1) - 2025-07-29
 
 ### Fixed
