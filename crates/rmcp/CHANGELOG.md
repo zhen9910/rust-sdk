@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/modelcontextprotocol/rust-sdk/compare/rmcp-v0.4.1...rmcp-v0.5.0) - 2025-08-07
+
+### Fixed
+
+- correct numeric types in progress notifications ([#361](https://github.com/modelcontextprotocol/rust-sdk/pull/361))
+
 ## [0.4.1](https://github.com/modelcontextprotocol/rust-sdk/compare/rmcp-v0.4.0...rmcp-v0.4.1) - 2025-08-07
 
 ### Fixed
