@@ -15,7 +15,11 @@ wait for the first release.
 Creating a server with tools is simple using the `#[tool]` macro:
 
 ```rust, ignore
-use rmcp::{ErrorData as McpError, ServiceExt, model::*, tool, tool_router, transport::stdio, handler::server::tool::ToolCallContext, handler::server::router::tool::ToolRouter};
+use rmcp::{
+    handler::server::router::tool::ToolRouter, model::*, tool, tool_handler, tool_router,
+    transport::stdio, ErrorData as McpError, ServiceExt,
+};
+use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -57,7 +61,7 @@ impl Counter {
 impl rmcp::ServerHandler for Counter {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
-            instructions: Some("A simple calculator".into()),
+            instructions: Some("A simple counter that tallies the number of times the increment tool has been used".into()),
             capabilities: ServerCapabilities::builder().enable_tools().build(),
             ..Default::default()
         }
