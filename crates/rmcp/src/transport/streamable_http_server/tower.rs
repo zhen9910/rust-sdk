@@ -319,12 +319,6 @@ where
                             .map_err(internal_error_response("accept message"))?;
                         Ok(accepted_response())
                     }
-                    _ => Ok(Response::builder()
-                        .status(http::StatusCode::NOT_IMPLEMENTED)
-                        .body(
-                            Full::new(Bytes::from("Batch requests are not supported yet")).boxed(),
-                        )
-                        .expect("valid response")),
                 }
             } else {
                 let (session_id, transport) = self
@@ -427,10 +421,6 @@ where
                 }
                 ClientJsonRpcMessage::Response(_json_rpc_response) => Ok(accepted_response()),
                 ClientJsonRpcMessage::Error(_json_rpc_error) => Ok(accepted_response()),
-                _ => Ok(Response::builder()
-                    .status(http::StatusCode::NOT_IMPLEMENTED)
-                    .body(Full::new(Bytes::from("Batch requests are not supported yet")).boxed())
-                    .expect("valid response")),
             }
         }
     }
