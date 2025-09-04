@@ -114,54 +114,74 @@ impl PromptMessage {
             content: PromptMessageContent::Text { text: text.into() },
         }
     }
+
+    /// Create a new image message. `meta` and `annotations` are optional.
     #[cfg(feature = "base64")]
     pub fn new_image(
         role: PromptMessageRole,
         data: &[u8],
         mime_type: &str,
+        meta: Option<crate::model::Meta>,
         annotations: Option<Annotations>,
     ) -> Self {
-        let mime_type = mime_type.into();
-
         let base64 = BASE64_STANDARD.encode(data);
-
         Self {
             role,
             content: PromptMessageContent::Image {
                 image: RawImageContent {
                     data: base64,
-                    mime_type,
+                    mime_type: mime_type.into(),
+                    meta,
                 }
                 .optional_annotate(annotations),
             },
         }
     }
 
-    /// Create a new resource message
+    /// Create a new resource message. `resource_meta`, `resource_content_meta`, and `annotations` are optional.
     pub fn new_resource(
         role: PromptMessageRole,
         uri: String,
-        mime_type: String,
+        mime_type: Option<String>,
         text: Option<String>,
+        resource_meta: Option<crate::model::Meta>,
+        resource_content_meta: Option<crate::model::Meta>,
         annotations: Option<Annotations>,
     ) -> Self {
-        let resource_contents = ResourceContents::TextResourceContents {
-            uri,
-            mime_type: Some(mime_type),
-            text: text.unwrap_or_default(),
-            meta: None,
+        let resource_contents = match text {
+            Some(t) => ResourceContents::TextResourceContents {
+                uri,
+                mime_type,
+                text: t,
+                meta: resource_content_meta,
+            },
+            None => ResourceContents::BlobResourceContents {
+                uri,
+                mime_type,
+                blob: String::new(),
+                meta: resource_content_meta,
+            },
         };
-
         Self {
             role,
             content: PromptMessageContent::Resource {
                 resource: RawEmbeddedResource {
-                    meta: None,
+                    meta: resource_meta,
                     resource: resource_contents,
                 }
                 .optional_annotate(annotations),
             },
         }
+    }
+
+    /// Note: PromptMessage text content does not carry protocol-level _meta per current schema.
+    /// This function exists for API symmetry but ignores the meta parameter.
+    pub fn new_text_with_meta<S: Into<String>>(
+        role: PromptMessageRole,
+        text: S,
+        _meta: Option<crate::model::Meta>,
+    ) -> Self {
+        Self::new_text(role, text)
     }
 
     /// Create a new resource link message
@@ -184,6 +204,7 @@ mod tests {
         let image_content = RawImageContent {
             data: "base64data".to_string(),
             mime_type: "image/png".to_string(),
+            meta: None,
         };
 
         let json = serde_json::to_string(&image_content).unwrap();
