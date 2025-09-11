@@ -18,16 +18,16 @@
 //!
 //! 1. Creates two duplex streams using `tokio::io::duplex()`
 //! 2. Spawns an MCP server task using one end of the duplex
-//! 3. Creates an MCP client using the other end of the duplex
-//! 4. Demonstrates typical MCP operations (list tools, call tools)
-//! 5. Both tasks communicate through the in-memory duplex streams
+//! 3. Spawns an MCP client task using the other end of the duplex
+//! 4. Both tasks run concurrently and communicate through duplex streams
+//! 5. Demonstrates typical MCP operations (list tools, call tools)
+//! 6. Uses `tokio::join!` to wait for both tasks to complete
 
 mod common;
 
 use common::calculator::Calculator;
 use rmcp::{model::CallToolRequestParam, serve_client, serve_server};
 use std::time::Duration;
-use tokio::time::timeout;
 
 fn create_tool_request(tool_name: &str, a: i32, b: i32) -> CallToolRequestParam {
     let mut args = serde_json::Map::new();
@@ -79,70 +79,129 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    // Give the server a moment to initialize
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    println!("🖥️  Spawning MCP client task...");
 
-    println!("🖥️  Creating MCP client...");
+    // Spawn the client task
+    let client_handle = tokio::spawn(async move {
+        // Give the server a moment to initialize
+        tokio::time::sleep(Duration::from_millis(100)).await;
 
-    // Create the client
-    let client = serve_client((), client_stream).await?;
+        match serve_client((), client_stream).await {
+            Ok(client) => {
+                tracing::info!("✅ MCP client initialized successfully");
+                
+                // Demonstrate MCP operations
+                println!("✅ Client and server connected!");
 
-    println!("✅ Client and server connected!");
+                println!("\n📋 Getting server information...");
+                if let Some(server_info) = client.peer().peer_info() {
+                    println!("📄 Server info:");
+                    if let Ok(json) = serde_json::to_string_pretty(server_info) {
+                        println!("{}", json);
+                    }
+                } else {
+                    println!("⚠️  Server info not available yet");
+                }
 
-    // Demonstrate MCP operations
-    println!("\n📋 Getting server information...");
-    if let Some(server_info) = client.peer().peer_info() {
-        println!("📄 Server info:");
-        println!("{}", serde_json::to_string_pretty(server_info)?);
-    } else {
-        println!("⚠️  Server info not available yet");
-    }
+                println!("\n🔧 Listing available tools...");
+                match client.peer().list_tools(Default::default()).await {
+                    Ok(tools) => {
+                        println!("🛠️  Available tools:");
+                        if let Ok(json) = serde_json::to_string_pretty(&tools) {
+                            println!("{}", json);
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("❌ Failed to list tools: {}", e);
+                        return Err(anyhow::anyhow!("Failed to list tools: {}", e));
+                    }
+                }
 
-    println!("\n🔧 Listing available tools...");
-    let tools = client.peer().list_tools(Default::default()).await?;
-    println!("🛠️  Available tools:");
-    println!("{}", serde_json::to_string_pretty(&tools)?);
+                println!("\n🧮 Testing calculator tools...");
 
-    println!("\n🧮 Testing calculator tools...");
+                // Test the sum tool
+                println!("➕ Calling sum(5, 3)...");
+                let sum_request = create_tool_request("sum", 5, 3);
+                match client.peer().call_tool(sum_request).await {
+                    Ok(sum_result) => {
+                        println!("📊 Sum result:");
+                        if let Ok(json) = serde_json::to_string_pretty(&sum_result) {
+                            println!("{}", json);
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("❌ Failed to call sum tool: {}", e);
+                    }
+                }
 
-    // Test the sum tool
-    println!("➕ Calling sum(5, 3)...");
-    let sum_request = create_tool_request("sum", 5, 3);
-    let sum_result = client.peer().call_tool(sum_request).await?;
-    println!("📊 Sum result:");
-    println!("{}", serde_json::to_string_pretty(&sum_result)?);
+                // Test the sub tool
+                println!("➖ Calling sub(10, 4)...");
+                let sub_request = create_tool_request("sub", 10, 4);
+                match client.peer().call_tool(sub_request).await {
+                    Ok(sub_result) => {
+                        println!("📊 Subtraction result:");
+                        if let Ok(json) = serde_json::to_string_pretty(&sub_result) {
+                            println!("{}", json);
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("❌ Failed to call sub tool: {}", e);
+                    }
+                }
 
-    // Test the sub tool
-    println!("➖ Calling sub(10, 4)...");
-    let sub_request = create_tool_request("sub", 10, 4);
-    let sub_result = client.peer().call_tool(sub_request).await?;
-    println!("📊 Subtraction result:");
-    println!("{}", serde_json::to_string_pretty(&sub_result)?);
+                // Test with larger numbers
+                println!("🔢 Calling sum(1000, 2000)...");
+                let large_sum_request = create_tool_request("sum", 1000, 2000);
+                match client.peer().call_tool(large_sum_request).await {
+                    Ok(large_sum_result) => {
+                        println!("📊 Large sum result:");
+                        if let Ok(json) = serde_json::to_string_pretty(&large_sum_result) {
+                            println!("{}", json);
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("❌ Failed to call large sum tool: {}", e);
+                    }
+                }
 
-    // Test with larger numbers
-    println!("🔢 Calling sum(1000, 2000)...");
-    let large_sum_request = create_tool_request("sum", 1000, 2000);
-    let large_sum_result = client.peer().call_tool(large_sum_request).await?;
-    println!("📊 Large sum result:");
-    println!("{}", serde_json::to_string_pretty(&large_sum_result)?);
+                println!("\n🏁 Client task completing operations...");
+                tracing::info!("✅ MCP client completed all operations successfully");
+                
+                // Keep the client alive for a moment to allow final message processing
+                tokio::time::sleep(Duration::from_millis(100)).await;
+                
+                Ok(())
+            }
+            Err(e) => {
+                tracing::error!("❌ Failed to initialize MCP client: {}", e);
+                Err(anyhow::anyhow!("Failed to initialize MCP client: {}", e))
+            }
+        }
+    });
 
-    println!("\n🏁 Closing client connection...");
-    
-    // Close the client connection gracefully
-    drop(client);
+    println!("⏳ Waiting for both tasks to complete...");
 
-    println!("⏳ Waiting for server to finish...");
+    // Wait for both tasks to complete
+    let (client_result, server_result) = tokio::join!(client_handle, server_handle);
 
-    // Wait for the server task to complete with a timeout
-    match timeout(Duration::from_secs(5), server_handle).await {
+    match client_result {
         Ok(Ok(())) => {
-            println!("✅ Server task completed successfully");
+            println!("✅ Client task completed successfully");
         }
         Ok(Err(e)) => {
-            println!("❌ Server task failed: {}", e);
+            println!("❌ Client task failed: {}", e);
         }
-        Err(_) => {
-            println!("⚠️  Server task timed out");
+        Err(e) => {
+            println!("❌ Client task panicked: {}", e);
+        }
+    }
+
+    match server_result {
+        Ok(()) => {
+            println!("✅ Server task completed successfully");
+        }
+        Err(e) => {
+            println!("❌ Server task panicked: {}", e);
         }
     }
 

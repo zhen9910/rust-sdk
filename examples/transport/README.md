@@ -42,7 +42,7 @@ This directory contains examples demonstrating different transport methods for t
   cargo run --example stdio client      # Run as client
   ```
 
-- **[stdio-tokio.rs](src/stdio-tokio.rs)** - ⭐ **NEW!** In-process stdio-like transport using Tokio tasks
+- **[stdio-tokio.rs](src/stdio-tokio.rs)** - ⭐ **NEW!** In-process stdio-like transport with both MCP server and client as Tokio tasks
   ```bash
   cargo run --example stdio-tokio
   ```
@@ -60,9 +60,11 @@ This directory contains examples demonstrating different transport methods for t
 |---------|----------|----------------|
 | **Process Model** | Subprocess communication | In-process tasks |
 | **Transport** | Real stdin/stdout pipes | Tokio duplex streams |
+| **Task Model** | Server in subprocess, client in main | Both server and client as Tokio tasks |
 | **Complexity** | Process management required | Simple task spawning |
 | **Debugging** | Cross-process debugging | Single-process debugging |
 | **Performance** | Process overhead | In-memory communication |
+| **Concurrency** | Sequential initialization | Concurrent task execution |
 | **Use Case** | Production MCP servers | Testing, prototyping |
 
 ### When to Use Each
