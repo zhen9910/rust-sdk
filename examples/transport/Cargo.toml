@@ -82,3 +82,7 @@ path = "src/stdio.rs"
 [[example]]
 name = "stdio-mcp"
 path = "src/stdio-mcp.rs"
+
+[[example]]
+name = "stdio-tokio"
+path = "src/stdio-tokio.rs"

@@ -67,6 +67,8 @@ see [servers/README.md](servers/README.md)
 - [Transport on http upgrade](transport/src/http_upgrade.rs)
 - [Unix Socket](transport/src/unix_socket.rs)
 - [Websocket](transport/src/websocket.rs)
+- [Stdio (subprocess)](transport/src/stdio.rs) - MCP communication via stdio with subprocess
+- [Stdio Tokio (in-process)](transport/src/stdio-tokio.rs) - MCP server and client as Tokio tasks in same process
 
 # Integration
 
