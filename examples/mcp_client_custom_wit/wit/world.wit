@@ -1,0 +1,14 @@
+package example:mcp-client;
+
+interface mcp {
+    /// Run the MCP client demo
+    run: func() -> bool;
+    
+    /// Get client version
+    version: func() -> string;
+
+}
+
+world mcp-client {
+    export mcp;
+}
